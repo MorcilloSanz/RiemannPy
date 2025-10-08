@@ -25,6 +25,7 @@ if __name__ == "__main__":
     print(f'\033[1;95mRicci tensor:\033[0m\n {manifold.ricci_tensor}')
     print(f'\033[1;95mRicci scalar:\033[0m\n {manifold.ricci_scalar}')
     print(f'\033[1;95mGauss curvature:\033[0m\n {manifold.gauss_curvature}')
+    print(f'\033[1;95mSurface variation:\033[0m\n {manifold.surface_variation}')
     print('\n')
 
     geodesic, arc_length = manifold.geodesic(0, 2000)
