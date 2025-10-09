@@ -227,11 +227,28 @@ class Manifold:
             
         return metric_tensor, inv_metric_tensor
     
-    def compute_metric_tensor_derivatives(self) -> None:
-        metric_tensor_derivatives: np.array = np.zeros((self.points.shape[0], 2, 2, 2))
+    def compute_metric_tensor_derivatives(self, metric_tensor: np.array) -> None:
+        """_summary_
+        
+        Defined in the edges of the graph
+        
+        $\partial_{j} g_{\mu \nu}(p_i)  = \sqrt{w_{ij}}(g_{\mu \nu}(p_j) - g_{\mu \nu}(p_i))$
+
+        Args:
+            metric_tensor (np.array): _description_
+
+        Returns:
+            _type_: _description_
+        """
+
+        edges = list(self.graph.edges(data="weight")) #(i, j, w_ij)
+
+        metric_tensor_derivatives: np.array = np.zeros((len(edges), 2, 2, 2))
+
+        print(edges)
+        
         return metric_tensor_derivatives
-            
-    
+
     def compute_christoffel_symbols(self, ) -> np.array:
         christoffel_symbols: np.array = np.zeros((self.points.shape[0], 2, 2, 2))
         return christoffel_symbols
@@ -248,4 +265,6 @@ if __name__ == "__main__":
     tangent_space_basis = manifold.compute_tangent_space_basis(orthonormal_basis)
     
     metric_tensor, inv_metric_tensor = manifold.compute_metric_tensor(tangent_space_basis)
-    print(metric_tensor)
+    #print(metric_tensor)
+    
+    metric_tensor_derivatives = manifold.compute_metric_tensor_derivatives(metric_tensor)
