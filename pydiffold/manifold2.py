@@ -137,9 +137,9 @@ class Manifold:
         
         return basis
     
-    def compute_metric_tensor_field(self) -> list[np.array]:
+    def compute_metric_tensor(self) -> list[np.array]:
         """
-        Compute the local metric tensor field for a graph embedded in Euclidean space.
+        Compute the local metric tensor for a graph embedded in Euclidean space.
 
         Each node in the graph is associated with a set of edges connecting it to neighboring nodes.
         For each node, this function computes the *local metric tensor* `g_{μν}` defined as:
@@ -227,10 +227,20 @@ class Manifold:
         Returns:
             _type_: _description_
         """
-        edges = list(self.graph.edges(data="weight")) #(i, j, w_ij)
-        metric_tensor_derivatives = np.zeros((len(edges), 2, 2, 2))
+        tensor_field: list[np.array] = []
         
-        return metric_tensor_derivatives
+        # No se pueden restar los tensores metricos de distintos nodos
+        # puesto que cada uno puede tener un numero distinto de aristas
+        # y por tanto las dimensiones de las matrices serán diferentes.
+        # Hay que considerar los tensores métricos de las mismas dimensiones
+        # 2x2 o 3x3 por ejemplo.
+        
+        edges = list(self.graph.edges(data="weight")) #(i, j, w_ij)
+        
+        for ij, edge in enumerate(edges):
+            pass
+        
+        return tensor_field
 
     def compute_christoffel_symbols(self, ) -> np.array:
         christoffel_symbols = np.zeros((self.points.shape[0], 2, 2, 2))
@@ -251,6 +261,6 @@ if __name__ == "__main__":
     normals = orthonormal_basis[:, :, 2]
     
     # Metric tensor
-    metric_tensor_field = manifold.compute_metric_tensor_field()
+    metric_tensor_field = manifold.compute_metric_tensor()
     
     #metric_tensor_derivatives = manifold.compute_metric_tensor_derivatives(metric_tensor)
