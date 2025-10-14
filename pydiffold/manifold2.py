@@ -28,7 +28,7 @@ class Manifold:
         self.k = k
         
         self.tree = KDTree(points)
-        self.graph: nx.Graph = nx.Graph()
+        self.graph = nx.Graph()
         
         self.__compute_graph()
         
@@ -56,7 +56,7 @@ class Manifold:
         for i, p in enumerate(self.points):
             
             distances, indices = self.tree.query(p, k=self.k + 1)
-            neighborhood: np.array = self.points[indices]
+            neighborhood = self.points[indices]
             
             if len(neighborhood) < self.__MIN_NEIGHBORHOOD:
                 continue
@@ -122,12 +122,12 @@ class Manifold:
             - The basis orientation is not guaranteed to be globally consistent
             (normals may point in opposite directions across the surface).
         """
-        basis: np.array = np.zeros((self.points.shape[0], 3, 3))
+        basis = np.zeros((self.points.shape[0], 3, 3))
         
         for node in self.graph.nodes:
             
             indices = list(self.graph.neighbors(node))
-            neighborhood: np.array = self.points[indices]
+            neighborhood = self.points[indices]
 
             if len(neighborhood) < self.__MIN_NEIGHBORHOOD:
                 continue
@@ -137,102 +137,89 @@ class Manifold:
         
         return basis
     
-    def compute_tangent_space_basis(self, orthonormal_basis: np.array) -> np.array:
+    def compute_metric_tensor_field(self) -> list[np.array]:
         """
-        Computes a smooth tangent basis for each point by averaging the tangent
-        directions (e1, e2) of neighboring points to capture local curvature.
+        Compute the local metric tensor field for a graph embedded in Euclidean space.
 
-        Args:
-            orthonormal_basis (np.array): (N, 3, 3) array where columns are [v1, v2, v3].
+        Each node in the graph is associated with a set of edges connecting it to neighboring nodes.
+        For each node, this function computes the *local metric tensor* `g_{μν}` defined as:
 
-        Returns:
-            np.array: (N, 2, 3) array, where each entry contains two tangent vectors
-                    forming the local tangent space basis.
+            g_{μν} = <e_μ, e_ν> = e_μ · e_ν
+
+        where each vector `e_μ` represents the tangent direction of an edge emanating from the node,
+        computed as the difference between the coordinates of the neighboring point and the current node.
+
+        In discrete geometry, this metric tensor provides a measure of the local geometric structure
+        (edge lengths and angles) around each node, analogous to the continuous metric tensor on a manifold.
+
+        ---
+        **Mathematical definition**
+
+        For each node `p_i`, with neighboring nodes `{p_j}`, let:
+
+            e_μ = p_j - p_i
+
+        Then the local metric tensor is given by:
+
+            G_i = [ [ <e_1, e_1>, <e_1, e_2>, ..., <e_1, e_n> ],
+                    [ <e_2, e_1>, <e_2, e_2>, ..., <e_2, e_n> ],
+                    ...
+                    [ <e_n, e_1>, <e_n, e_2>, ..., <e_n, e_n> ] ]
+
+        where `<·,·>` denotes the standard Euclidean inner product.
+
+        ---
+        **Returns**
+        -------
+        list[np.ndarray]
+            A list where each entry corresponds to the metric tensor of a node in the graph.
+            Each tensor is a square matrix of shape `(k_i, k_i)`, where `k_i` is the number of edges
+            connected to the i-th node (i.e., its degree).
+
+        ---
+        **Notes**
+        -----
+        - The resulting list may contain matrices of varying sizes, since each node can have a different degree.
+        - If the graph is undirected, the orientation of the edge vectors is chosen such that all vectors
+        point outward from the current node.
+        - The metric tensor can be used to compute local geometric quantities such as edge lengths,
+        angles, or local curvature approximations.
+
+        **Example**
+        -------
+        >>> field = mesh.compute_metric_tensor_field()
+        >>> field[0].shape
+        (3, 3)
+        >>> field[0]
+        array([[1.00, 0.50, 0.20],
+            [0.50, 1.00, 0.45],
+            [0.20, 0.45, 1.00]])
         """
-        basis = np.zeros((self.points.shape[0], 2, 3))
-
+        tensor_field: list[np.array] = []
+        
         for node in self.graph.nodes:
             
-            indices = list(self.graph.neighbors(node))
-            neighborhood: np.array = self.points[indices]
-
-            if len(neighborhood) < self.__MIN_NEIGHBORHOOD:
-                continue
+            edges = list(self.graph.edges(node))
+            metric_tensor = np.zeros((len(edges), len(edges)))
             
-            e1_mean = np.mean(orthonormal_basis[indices, :, 0], axis=0)
-            e2_mean = np.mean(orthonormal_basis[indices, :, 1], axis=0)
-
-            e1 = e1_mean / np.linalg.norm(e1_mean)
-            e2 = e2_mean / np.linalg.norm(e2_mean)
-
-            basis[node, 0] = e1
-            basis[node, 1] = e2
-
-        return basis
-    
-    def compute_metric_tensor(self, tangent_space_basis: np.array) -> tuple[np.array, np.array]:
-        """
-        Computes the local metric tensor and its inverse for each point in the point cloud
-        based on the (non-orthonormal) tangent space basis vectors.
-
-        For each point `i`, the local tangent space is defined by two averaged tangent
-        vectors `[e₁, e₂]` obtained from neighboring PCA bases (see `compute_tangent_space_basis`).
-        These vectors are not necessarily orthogonal, allowing the metric tensor to
-        capture local curvature and anisotropy of the surface.
-
-        The metric tensor encodes the inner products between the tangent basis vectors:
-            g_ij = ⟨e_i, e_j⟩ = e_i · e_j
-
-        Thus, for each point `i`, the metric tensor is:
-            g = [[⟨e₁, e₁⟩, ⟨e₁, e₂⟩],
-                [⟨e₂, e₁⟩, ⟨e₂, e₂⟩]]
-
-        Its inverse `g⁻¹` is also computed, as it is often required for differential
-        geometric operations (e.g., gradient, Laplace–Beltrami, curvature).
-
-        Args:
-            tangent_space_basis (np.array):
-                Array of shape (N, 2, 3), where each entry `tangent_space_basis[i]`
-                contains the two tangent vectors `[e₁, e₂]` spanning the local tangent
-                plane at point `i`.
-
-        Returns:
-            tuple[np.array, np.array]:
-                - `metric_tensor`: Array of shape (N, 2, 2) containing the metric tensor
-                for each point.
-                - `inv_metric_tensor`: Array of the same shape containing the inverse
-                of the metric tensor for each point.
-
-        Notes:
-            - If the tangent vectors are orthonormal (e.g., from raw PCA), then
-            `metric_tensor[i] ≈ I₂`.
-            - When the tangent vectors are averaged across neighborhoods, the resulting
-            metric deviates from the identity, encoding local curvature information.
-            - Singular metric tensors (e.g., due to degenerate neighborhoods) will
-            raise a `LinAlgError` during inversion.
-        """
-        metric_tensor: np.array = np.zeros((self.points.shape[0], 2, 2))
-        inv_metric_tensor: np.array = np.zeros(metric_tensor.shape)
-        
-        for i in range(self.points.shape[0]):
+            e = []
+            for edge in edges:
+                e_i = self.points[edge[1]] - self.points[edge[0]]
+                e.append(e_i)
             
-            e1, e2 = tangent_space_basis[i]
+            for i in range(len(e)):
+                for j in range(len(e)):
+                    metric_tensor[i,j] = np.dot(e[i], e[j])
+                    
+            tensor_field.append(metric_tensor)
             
-            metric_tensor[i] = np.array([
-                [np.dot(e1, e1), np.dot(e1, e2)],
-                [np.dot(e2, e1), np.dot(e2, e2)]
-            ])
-        
-            inv_metric_tensor[i] = np.linalg.inv(metric_tensor[i])
-            
-        return metric_tensor, inv_metric_tensor
-    
+        return tensor_field
+                
     def compute_metric_tensor_derivatives(self, metric_tensor: np.array) -> None:
-        """_summary_
+        """
+        Defined in each edge (i,j) of the graph
         
-        Defined in the edges of the graph
-        
-        $\partial_{j} g_{\mu \nu}(p_i)  = \sqrt{w_{ij}}(g_{\mu \nu}(p_j) - g_{\mu \nu}(p_i))$
+        $\partial_{\alpha} g_{\mu \nu}(p_i)  = \sqrt{w_{ij}}(g_{\mu \nu}(p_j) - g_{\mu \nu}(p_i))$
 
         Args:
             metric_tensor (np.array): _description_
@@ -240,31 +227,30 @@ class Manifold:
         Returns:
             _type_: _description_
         """
-
         edges = list(self.graph.edges(data="weight")) #(i, j, w_ij)
-
-        metric_tensor_derivatives: np.array = np.zeros((len(edges), 2, 2, 2))
-
-        print(edges)
+        metric_tensor_derivatives = np.zeros((len(edges), 2, 2, 2))
         
         return metric_tensor_derivatives
 
     def compute_christoffel_symbols(self, ) -> np.array:
-        christoffel_symbols: np.array = np.zeros((self.points.shape[0], 2, 2, 2))
+        christoffel_symbols = np.zeros((self.points.shape[0], 2, 2, 2))
         return christoffel_symbols
     
     
 if __name__ == "__main__":
     
-    points: np.array = np.loadtxt('bunny.txt')
+    # Create manifold
+    points = np.loadtxt('bunny.txt')
     manifold = Manifold(points)
     
+    # Tangent space
     orthonormal_basis = manifold.compute_orthonormal_basis()
+
+    tangent_u = orthonormal_basis[:, :, 0]
+    tangent_v = orthonormal_basis[:, :, 1]
     normals = orthonormal_basis[:, :, 2]
     
-    tangent_space_basis = manifold.compute_tangent_space_basis(orthonormal_basis)
+    # Metric tensor
+    metric_tensor_field = manifold.compute_metric_tensor_field()
     
-    metric_tensor, inv_metric_tensor = manifold.compute_metric_tensor(tangent_space_basis)
-    #print(metric_tensor)
-    
-    metric_tensor_derivatives = manifold.compute_metric_tensor_derivatives(metric_tensor)
+    #metric_tensor_derivatives = manifold.compute_metric_tensor_derivatives(metric_tensor)
