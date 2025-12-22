@@ -99,6 +99,9 @@ class Manifold:
 
     def __init_tensors(self) -> None:
         
+        self.normal_vectors = np.zeros((self.points.shape[0], 3))
+        self.tangent_vectors = np.zeros((self.points.shape[0], 2, 3))
+        
         self.metric_tensor = np.zeros((self.points.shape[0], 2, 2))
         self.metric_tensor_inv = np.zeros((self.points.shape[0], 2, 2))
         
@@ -138,6 +141,11 @@ class Manifold:
             # Tangent vectors at p
             r_u = R.T @ r_u_transformed
             r_v = R.T @ r_v_transformed
+            self.tangent_vectors[i] = np.array([r_u, r_v])
+            
+            # Normal vector at p
+            normal = np.cross(r_u, r_v)
+            self.normal_vectors[i] = normal
 
             # metric tensor in p
             g, g_inv = self.__compute_metric_tensor(r_u, r_v)
