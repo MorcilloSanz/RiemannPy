@@ -35,3 +35,6 @@ if __name__ == "__main__":
 
     points = sample_sphere(n_points=5000, radius=100)
     manifold = Manifold(points)
+    
+    print(f'\033[1;32mMetric tensor\033[0m g_μν(p):\n {manifold.metric_tensor}\n')
+    print(f'\033[1;32mMetric tensor inverse\033[0m g^μν(p):\n {manifold.metric_tensor}\n')
