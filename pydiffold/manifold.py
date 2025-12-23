@@ -51,7 +51,8 @@ class Manifold:
 
     def __compute_tangent_vectors(self, params: np.array, u: float, v: float) -> tuple[np.array, np.array]:
         """
-        Computes the tangent vectors of a quadratic surface at a given point.
+        Computes the tangent vectors of a quadratic surface at a given
+        p = (u, v) in local coordiantes.
 
         The surface is defined by the function:
             f(x, y) = a*x^2 + b*y^2 + c*x*y + d*x + e*y + f
@@ -75,53 +76,111 @@ class Manifold:
 
         return r_u, r_v
 
-    def __compute_metric_tensor(self, r_u: np.array, r_v: np.array) -> tuple[np.array, np.array]:
+    def __compute_metric_tensor(self, params: np.array, u: float, v: float) -> tuple[np.array, np.array]:
         """
-        Computes the metric tensor g_{μν} and its inverse g^{μν} at a given point p = (u, v)
+        Computes the metric tensor g_{μν} and its inverse g^{μν} at a given 
+        point p = (u, v) in local coordiantes.
 
         Args:
-            r_u (np.array): _description_
-            r_v (np.array): _description_
+            params (np.array): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            u (float): x-coordinate of the point in local coordinates.
+            v (float): y-coordinate of the point in local coordinates.
 
         Returns:
             tuple[np.array, np.array]: The metric tensor and its inverse.
                 - g: the metric tensor at a given point p = (u, v)
                 - g_inv: the inverse metric tensor at a given point p = (u, v)
         """
+        a, b, c, d, e, f = params
+        
+        f_u = 2*a*u + c*v + d
+        f_v = 2*b*v + c*u + e
+        
+        E = 1 + f_u**2
+        F = f_u * f_v
+        G = 1 + f_v**2
+        
         g = np.array([
-            [np.dot(r_u, r_u), np.dot(r_u, r_v)],
-            [np.dot(r_v, r_u), np.dot(r_v, r_v)]
+            [E, F],
+            [F, G]
         ])
         
         g_inv: np.array = np.linalg.inv(g)
         
         return g, g_inv
+    
+    def __compute_metric_tensor_derivatives(self, params: np.array, u: float, v: float) -> np.array:
+        """
+        Computes the metric tensor derivatives ∂_α g_{μν} at a given 
+        point p = (u, v) in local coordinates.
+
+        Args:
+            params (np.array): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            u (float): x-coordinate of the point in local coordinates.
+            v (float): y-coordinate of the point in local coordinates.
+
+        Returns:
+            np.array: The partial derivatives ∂_α g_{μν}:
+                ∂_1 g_{μν} = ∂_u g_{μν}
+                ∂_2 g_{μν} = ∂_v g_{μν}
+        """
+        a, b, c, d, e, f = params
+        metric_tensor_derivatives = np.zeros((2, 2, 2))
+        
+        f_u = 2*a*u + c*v + d
+        f_uu = 2*a
+        f_uv = c
+        
+        f_v = 2*b*v + c*u + e
+        f_vv = 2*b
+        f_vu = c
+        
+        dE_du = 2 * f_u * f_uu
+        dF_du = f_uu * f_v + f_u * f_vu
+        dG_du = 2 * f_v * f_vu
+        
+        metric_tensor_derivatives[0] = np.array([
+            [dE_du, dF_du],
+            [dF_du, dG_du]
+        ])
+        
+        dE_dv = 2 * f_u * f_uv
+        dF_dv = f_uv * f_v + f_u * f_vv
+        dG_dv = 2 * f_v * f_vv
+        
+        metric_tensor_derivatives[1] = np.array([
+            [dE_dv, dF_dv],
+            [dF_dv, dG_dv]
+        ])
+        
+        return metric_tensor_derivatives
 
     def __init_tensors(self) -> None:
+        
+        self.local_coordinates = np.zeros((self.points.shape[0], 2)) # Given by a chart φ
         
         self.normal_vectors = np.zeros((self.points.shape[0], 3))
         self.tangent_vectors = np.zeros((self.points.shape[0], 2, 3))
         
         self.metric_tensor = np.zeros((self.points.shape[0], 2, 2))
         self.metric_tensor_inv = np.zeros((self.points.shape[0], 2, 2))
+        self.metric_tensor_derivatives = np.zeros((self.points.shape[0], 2, 2, 2))
         
         for i, p in enumerate(self.points):
 
-            # Find surface
+            # Find the surface
             distances, indices = self.tree.query(p, k=self.k + 1)
             
             points_local: np.array = self.points[indices]
             points_local_transformed, params, R = self.__find_surface(points_local)
             
             a, b, c, d, e, f = params
-
             # plot_paraboloid(points_local_transformed, params)
             
             # Fill graph
             if len(points_local) < self.__MIN_NEIGHBORHOOD:
                 continue
-            
-            # Compute graph
+
             for idx, j in enumerate(indices):
                 if j != i:
                     self.graph.add_edge(i, j, weight=distances[idx])
@@ -130,15 +189,17 @@ class Manifold:
             idx_local = np.where(np.all(np.isclose(points_local, p), axis=1))[0][0]
             p_transformed = points_local_transformed[idx_local]
 
-            # p_transformed is p rotated so we can evaulate it in the surface (wich is also rotated)
-            # p_transformed = (x_0, y_0, z_0) where z_0 = f(x_0, y_0) and f is the paraboloid
-            u_transformed = p_transformed[0]  # As p_transformed = (x_0, y_0, z_0) where z_0 = f(x_0, y_0), u = x_0
-            v_transformed = p_transformed[1]  # As p_transformed = (x_0, y_0, z_0) where z_0 = f(x_0, y_0), v = y_0
+            # Since r(u, v) = <u, v, f(u, v)> --> r(p_transformed[0], p_transformed[1]) = <p_transformed[0], p_transformed[1], p_transformed[3]>
+            # (u,v) are the local coordinates that would be given by a chart.
+            u = p_transformed[0]
+            v = p_transformed[1]
+            
+            self.local_coordinates[i] = [u, v]
 
             # Transformed tangent vectors at p
-            r_u_transformed, r_v_transformed = self.__compute_tangent_vectors(params, u_transformed, v_transformed)
+            r_u_transformed, r_v_transformed = self.__compute_tangent_vectors(params, u, v)
 
-            # Tangent vectors at p
+            # Tangent vectors at p. This is in ambient space coordinates, not local coordinates.
             r_u = R.T @ r_u_transformed
             r_v = R.T @ r_v_transformed
             self.tangent_vectors[i] = np.array([r_u, r_v])
@@ -147,11 +208,13 @@ class Manifold:
             normal = np.cross(r_u, r_v)
             self.normal_vectors[i] = normal
 
-            # metric tensor in p
-            g, g_inv = self.__compute_metric_tensor(r_u, r_v)
-            
+            # Metric tensor in p
+            g, g_inv = self.__compute_metric_tensor(params, u, v)
             self.metric_tensor[i] = g
             self.metric_tensor_inv[i] = g_inv
+            
+            # Metric tensor derivatives
+            self.metric_tensor_derivatives[i] = self.__compute_metric_tensor_derivatives(params, u, v)
 
     def geodesic(self, start_index: int, end_index: int) -> tuple[np.array, float]:
         """
