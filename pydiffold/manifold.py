@@ -190,7 +190,7 @@ class Manifold:
             p_transformed = points_local_transformed[idx_local]
 
             # Since r(u, v) = <u, v, f(u, v)> --> r(p_transformed[0], p_transformed[1]) = <p_transformed[0], p_transformed[1], p_transformed[3]>
-            # (u,v) are the local coordinates that would be given by a chart.
+            # (u,v) are the local coordinates that would be given by a chart (rotated points projected into XY plane).
             u = p_transformed[0]
             v = p_transformed[1]
             
