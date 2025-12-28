@@ -154,6 +154,62 @@ class Manifold:
         ])
         
         return metric_tensor_derivatives
+    
+    def __compute_christoffel_symbols(self, metric_tensor_inv: np.array, metric_tensor_derivatives: np.array) -> np.array:
+        """
+        Computes the Christoffel symbols of the second kind at each sample point
+        using the metric tensor and its partial derivatives.
+
+        The Christoffel symbols Γ^σ_{μν} define the Levi-Civita connection and describe
+        how tangent vectors are differentiated along coordinate directions on a manifold.
+
+        The computation uses the standard coordinate formula:
+            Γ^σ_{μν} = (1/2) * g^σλ ( ∂_μ g_νλ + ∂_ν g_μλ − ∂_λ g_μν )
+
+        Index meanings:
+            - μ, ν: Indices of the coordinate directions along which the derivative acts.
+            - λ: Dummy index used for summation (Einstein convention).
+            - σ: Index of the output coordinate direction of the resulting connection.
+
+        Data structure:
+            - self.metric_tensor[i] is the 2×2 metric tensor g_μν at sample point i.
+            - self.metric_tensor_inv[i] is the inverse metric tensor g^μν at point i.
+            - self.metric_tensor_derivatives[i, α] is ∂_α g_μν at point i,
+            for α ∈ {0, 1} representing the coordinate direction.
+
+        Storage format:
+            The computed Christoffel symbols are stored in `self.christoffel_symbols`,
+            an array of shape (N, 2, 2, 2), where:
+                - N is the number of sample points.
+                - The last three indices correspond to Γ^σ_{μν}, ordered as:
+                    [i, μ, ν, σ] → value of Γ^σ_{μν} at point i.
+
+        Notes:
+            - The Christoffel symbols are symmetric in the lower indices: Γ^σ_{μν} = Γ^σ_{νμ}.
+            - Assumes a 2-dimensional Riemannian manifold (μ, ν, σ ∈ {0, 1}).
+            - Derivatives of the metric tensor are assumed to be precomputed and provided.
+            
+        Args:
+            metric_tensor_inv (np.array): the inverse metric tensor at a given point p = (u, v).
+            metric_tensor_derivatives (np.array): 
+        """
+        christoffel_symbols = np.zeros((2, 2, 2))
+        
+        for mu in range(0, 2):
+            for nu in range(0, 2):
+                for sigma in range(0, 2):
+                    
+                    partial_mu = metric_tensor_derivatives[mu]
+                    partial_nu = metric_tensor_derivatives[nu]
+
+                    sum: float = 0
+                    for l in range(0, 2):
+                        partial_lambda: np.array = metric_tensor_derivatives[l]
+                        sum += metric_tensor_inv[sigma, l] * (partial_mu[nu, l] + partial_nu[mu, l] - partial_lambda[mu, nu])  
+                    
+                    christoffel_symbols[mu, nu, sigma] = 0.5 * sum
+        
+        return christoffel_symbols
 
     def __init_tensors(self) -> None:
         
@@ -165,6 +221,8 @@ class Manifold:
         self.metric_tensor = np.zeros((self.points.shape[0], 2, 2))
         self.metric_tensor_inv = np.zeros((self.points.shape[0], 2, 2))
         self.metric_tensor_derivatives = np.zeros((self.points.shape[0], 2, 2, 2))
+        
+        self.christoffel_symbols = np.zeros((self.points.shape[0], 2, 2, 2))
         
         for i, p in enumerate(self.points):
 
@@ -209,12 +267,18 @@ class Manifold:
             self.normal_vectors[i] = normal
 
             # Metric tensor in p
-            g, g_inv = self.__compute_metric_tensor(params, u, v)
-            self.metric_tensor[i] = g
-            self.metric_tensor_inv[i] = g_inv
+            metric_tensor, metric_tensor_inv = self.__compute_metric_tensor(params, u, v)
+            self.metric_tensor[i] = metric_tensor
+            self.metric_tensor_inv[i] = metric_tensor_inv
             
             # Metric tensor derivatives
-            self.metric_tensor_derivatives[i] = self.__compute_metric_tensor_derivatives(params, u, v)
+            metric_tensor_derivatives = self.__compute_metric_tensor_derivatives(params, u, v)
+            self.metric_tensor_derivatives[i] = metric_tensor_derivatives
+            
+            # Christoffel symbols
+            christoffel_symbols = self.__compute_christoffel_symbols(metric_tensor_inv, metric_tensor_derivatives)
+            self.christoffel_symbols[i] = christoffel_symbols
+            
 
     def geodesic(self, start_index: int, end_index: int) -> tuple[np.array, float]:
         """

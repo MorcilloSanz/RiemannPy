@@ -41,3 +41,5 @@ if __name__ == "__main__":
     print(f'\033[1;32mMetric tensor\033[0m g_μν(p):\n {manifold.metric_tensor}\n')
     print(f'\033[1;32mMetric tensor inverse\033[0m g^μν(p):\n {manifold.metric_tensor}\n')
     print(f'\033[1;32mMetric tensor derivatives\033[0m ∂_α g_μν(p):\n {manifold.metric_tensor_derivatives}\n')
+    
+    print(f'\033[1;32mChristoffel symbols\033[0m Γ^σ_μν(p):\n {manifold.christoffel_symbols}\n')
