@@ -48,6 +48,46 @@ class Manifold:
         params = fit_paraboloid(X_local)
 
         return X_local, params, R
+    
+    def __compute_surface_derivatives(self, params: np.ndarray, u: float, v: float) -> tuple[float, float]:
+        """
+        Computes the partial derivatives of the paraboloid f_u and f_v at a point p = (u, v).
+        
+        Args:
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            u (float): x-coordinate of the point where tangent vectors are computed.
+            v (float): y-coordinate of the point where tangent vectors are computed.
+            
+        Returns:
+            tuple[float, float]: partial derivative with respect u, partial derivative with respect v.
+        """
+        a, b, c, d, e, f = params
+        
+        f_u = 2*a*u + c*v + d
+        f_v = 2*b*v + c*u + e
+        
+        return f_u, f_v
+    
+    def __compute_surface_second_derivatives(self, params: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
+        """
+        Computes the partial second derivatives of the paraboloid f_uu, f_uv and f_vv at a point p = (u, v).
+        
+        Args:
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            u (float): x-coordinate of the point where tangent vectors are computed.
+            v (float): y-coordinate of the point where tangent vectors are computed.
+            
+        Returns:
+            tuple[float, float, float]: f_uu, f_uv, f_vv.
+        """
+        a, b, c, d, e, f = params
+        
+        f_uu = 2*a
+        f_uv = c
+        f_vv = 2*b
+        
+        return f_uu, f_uv, f_vv
+        
 
     def __compute_tangent_vectors(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -69,10 +109,10 @@ class Manifold:
                 - r_u: Tangent vector in the direction of increasing x.
                 - r_v: Tangent vector in the direction of increasing y.
         """
-        a, b, c, d, e, f = params
+        f_u, f_v = self.__compute_surface_derivatives(params, u, v)
 
-        r_u = np.array([1, 0, 2*a*u + c*v + d])
-        r_v = np.array([0, 1, 2*b*v + c*u + e])
+        r_u = np.array([1, 0, f_u])
+        r_v = np.array([0, 1, f_v])
 
         return r_u, r_v
     
@@ -88,10 +128,7 @@ class Manifold:
         Returns:
             tuple[float, float, float]: E, F, G terms of the first fundamental form.
         """
-        a, b, c, d, e, f = params
-        
-        f_u = 2*a*u + c*v + d
-        f_v = 2*b*v + c*u + e
+        f_u, f_v = self.__compute_surface_derivatives(params, u, v)
         
         E = 1 + f_u**2
         F = f_u * f_v
@@ -110,13 +147,9 @@ class Manifold:
             v (float): y-coordinate of the point in local coordinates.
 
         Returns:
-            tuple[float, float, float]: E, F, G terms of the first fundamental form.
+            tuple[float, float, float]: L, M, N terms of the second fundamental form.
         """
-        a, b, c, d, e, f = params
-        
-        f_uu = 2*a
-        f_uv = c
-        f_vv = 2*b
+        f_uu, f_uv, f_vv = self.__compute_surface_second_derivatives(params, u, v)
         
         r_uu = np.array([0, 0, f_uu])
         r_uv = np.array([0, 0, f_uv])
@@ -258,6 +291,24 @@ class Manifold:
                     christoffel_symbols[mu, nu, sigma] = 0.5 * sum
         
         return christoffel_symbols
+    
+    def __compute_gaussian_curvature(self, params: np.ndarray, normal: np.ndarray, u: float, v: float) -> float:
+        """
+        Computes the gaussian curvature K at a given point p = (u, v).
+
+        Args:
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            normal (np.ndarray): Normalised normal vector at (u, v).
+            u (float): x-coordinate of the point in local coordinates.
+            v (float): y-coordinate of the point in local coordinates.
+
+        Returns:
+            float: the gaussian curvature K.
+        """
+        E, F, G = self.__compute_first_fundamental_form(params, u, v)
+        L, M, N = self.__compute_second_fundamental_form(params, normal, u, v)
+        
+        return (L*N - M**2) / (E*G - F**2)
 
     def __init_tensors(self) -> None:
         
@@ -271,6 +322,8 @@ class Manifold:
         self.metric_tensor_derivatives = np.zeros((self.points.shape[0], 2, 2, 2))
         
         self.christoffel_symbols = np.zeros((self.points.shape[0], 2, 2, 2))
+        
+        self.gaussian_curvature = np.zeros((self.points.shape[0]))
         
         for i, p in enumerate(self.points):
 
@@ -327,6 +380,10 @@ class Manifold:
             # Christoffel symbols
             christoffel_symbols = self.__compute_christoffel_symbols(metric_tensor_inv, metric_tensor_derivatives)
             self.christoffel_symbols[i] = christoffel_symbols
+            
+            # Gaussian curvature
+            K = self.__compute_gaussian_curvature(params, normal, u, v)
+            self.gaussian_curvature[i] = K
             
 
     def geodesic(self, start_index: int, end_index: int) -> tuple[np.array, float]:
