@@ -2,9 +2,9 @@ import numpy as np
 import networkx as nx
 from scipy.spatial import KDTree
 
-from .transform import *
-from .fitting import *
-from .plotting import *
+from .fitting.transform import *
+from .fitting.fitting import *
+from .fitting.plotting import *
 
 class Manifold:
     """
@@ -17,7 +17,7 @@ class Manifold:
     """
     __MIN_NEIGHBORHOOD: int = 3
     
-    def __init__(self, points: np.array, k: int=10) -> None:
+    def __init__(self, points: np.ndarray, k: int=10) -> None:
         self.points = points
         self.k = k
         
@@ -26,7 +26,7 @@ class Manifold:
         
         self.__init_tensors()
 
-    def __find_surface(self, points_local: np.array) -> np.array:
+    def __find_surface(self, points_local: np.ndarray) -> np.ndarray:
         """
         Fits a plane to a set of local points and transforms them to a local coordinate system.
 
@@ -34,13 +34,13 @@ class Manifold:
         It then transforms the points into this local system and fits a paraboloid to the transformed points.
 
         Args:
-            points_local (np.array): Array of shape (n_points, n_dimensions) representing the points 
+            points_local (np.ndarray): Array of shape (n_points, n_dimensions) representing the points 
                                     in the local coordinate frame.
 
         Returns:
             tuple:
-                - X_local (np.array): The transformed points in the local coordinate system.
-                - params (np.array): Parameters of the fitted paraboloid in the local coordinate system.
+                - X_local (np.ndarray): The transformed points in the local coordinate system.
+                - params (np.ndarray): Parameters of the fitted paraboloid in the local coordinate system.
         """
         normal, p0 = fit_plane(points_local)
         X_local, R, (u, v, w) = transform_to_local_coordinates(points_local, p0, normal)
@@ -49,7 +49,7 @@ class Manifold:
 
         return X_local, params, R
 
-    def __compute_tangent_vectors(self, params: np.array, u: float, v: float) -> tuple[np.array, np.array]:
+    def __compute_tangent_vectors(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the tangent vectors of a quadratic surface at a given
         p = (u, v) in local coordiantes.
@@ -60,12 +60,12 @@ class Manifold:
         The tangent vectors are calculated at the point (u, v, f(u, v)).
 
         Args:
-            params (np.array): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
             u (float): x-coordinate of the point where tangent vectors are computed.
             v (float): y-coordinate of the point where tangent vectors are computed.
 
         Returns:
-            tuple[np.array, np.array]: Two tangent vectors at the point (u, v, f(u, v)):
+            tuple[np.ndarray, np.ndarray]: Two tangent vectors at the point (u, v, f(u, v)):
                 - r_u: Tangent vector in the direction of increasing x.
                 - r_v: Tangent vector in the direction of increasing y.
         """
@@ -75,21 +75,18 @@ class Manifold:
         r_v = np.array([0, 1, 2*b*v + c*u + e])
 
         return r_u, r_v
-
-    def __compute_metric_tensor(self, params: np.array, u: float, v: float) -> tuple[np.array, np.array]:
+    
+    def __compute_first_fundamental_form(self, params: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
         """
-        Computes the metric tensor g_{μν} and its inverse g^{μν} at a given 
-        point p = (u, v) in local coordiantes.
+        Computes the first fundamental form at a given point p = (u, v) in local coordiantes.
 
         Args:
-            params (np.array): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
             u (float): x-coordinate of the point in local coordinates.
             v (float): y-coordinate of the point in local coordinates.
 
         Returns:
-            tuple[np.array, np.array]: The metric tensor and its inverse.
-                - g: the metric tensor at a given point p = (u, v)
-                - g_inv: the inverse metric tensor at a given point p = (u, v)
+            tuple[float, float, float]: E, F, G terms of the first fundamental form.
         """
         a, b, c, d, e, f = params
         
@@ -100,27 +97,78 @@ class Manifold:
         F = f_u * f_v
         G = 1 + f_v**2
         
+        return E, F, G
+    
+    def __compute_second_fundamental_form(self, params: np.ndarray, normal: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
+        """
+        Computes the second fundamental form at a given point p = (u, v) in local coordiantes.
+
+        Args:
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            normal (np.ndarray): Normalised normal vector at (u, v).
+            u (float): x-coordinate of the point in local coordinates.
+            v (float): y-coordinate of the point in local coordinates.
+
+        Returns:
+            tuple[float, float, float]: E, F, G terms of the first fundamental form.
+        """
+        a, b, c, d, e, f = params
+        
+        f_uu = 2*a
+        f_uv = c
+        f_vv = 2*b
+        
+        r_uu = np.array([0, 0, f_uu])
+        r_uv = np.array([0, 0, f_uv])
+        r_vv = np.array([0, 0, f_vv])
+        
+        L = np.dot(r_uu, normal)
+        M = np.dot(r_uv, normal)
+        N = np.dot(r_vv, normal)
+        
+        return L, M, N
+        
+    def __compute_metric_tensor(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Computes the metric tensor g_{μν} and its inverse g^{μν} at a given 
+        point p = (u, v) in local coordiantes.
+
+        Args:
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            u (float): x-coordinate of the point in local coordinates.
+            v (float): y-coordinate of the point in local coordinates.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: The metric tensor and its inverse.
+                - g: the metric tensor at a given point p = (u, v)
+                - g_inv: the inverse metric tensor at a given point p = (u, v)
+        """
+        E, F, G = self.__compute_first_fundamental_form(params, u, v)
+        
         g = np.array([
             [E, F],
             [F, G]
         ])
         
-        g_inv: np.array = np.linalg.inv(g)
+        g_inv = np.array([
+            [G, -F],
+            [-F, E]
+        ]) / (E * G - F**2)
         
         return g, g_inv
     
-    def __compute_metric_tensor_derivatives(self, params: np.array, u: float, v: float) -> np.array:
+    def __compute_metric_tensor_derivatives(self, params: np.ndarray, u: float, v: float) -> np.ndarray:
         """
         Computes the metric tensor derivatives ∂_α g_{μν} at a given 
         point p = (u, v) in local coordinates.
 
         Args:
-            params (np.array): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
+            params (np.ndarray): Coefficients of the quadratic surface in the order [a, b, c, d, e, f].
             u (float): x-coordinate of the point in local coordinates.
             v (float): y-coordinate of the point in local coordinates.
 
         Returns:
-            np.array: The partial derivatives ∂_α g_{μν}:
+            np.ndarray: The partial derivatives ∂_α g_{μν}:
                 ∂_1 g_{μν} = ∂_u g_{μν}
                 ∂_2 g_{μν} = ∂_v g_{μν}
         """
@@ -155,7 +203,7 @@ class Manifold:
         
         return metric_tensor_derivatives
     
-    def __compute_christoffel_symbols(self, metric_tensor_inv: np.array, metric_tensor_derivatives: np.array) -> np.array:
+    def __compute_christoffel_symbols(self, metric_tensor_inv: np.ndarray, metric_tensor_derivatives: np.ndarray) -> np.ndarray:
         """
         Computes the Christoffel symbols of the second kind at each sample point
         using the metric tensor and its partial derivatives.
@@ -190,8 +238,8 @@ class Manifold:
             - Derivatives of the metric tensor are assumed to be precomputed and provided.
             
         Args:
-            metric_tensor_inv (np.array): the inverse metric tensor at a given point p = (u, v).
-            metric_tensor_derivatives (np.array): 
+            metric_tensor_inv (np.ndarray): the inverse metric tensor at a given point p = (u, v).
+            metric_tensor_derivatives (np.ndarray): 
         """
         christoffel_symbols = np.zeros((2, 2, 2))
         
@@ -204,7 +252,7 @@ class Manifold:
 
                     sum: float = 0
                     for l in range(0, 2):
-                        partial_lambda: np.array = metric_tensor_derivatives[l]
+                        partial_lambda: np.ndarray = metric_tensor_derivatives[l]
                         sum += metric_tensor_inv[sigma, l] * (partial_mu[nu, l] + partial_nu[mu, l] - partial_lambda[mu, nu])  
                     
                     christoffel_symbols[mu, nu, sigma] = 0.5 * sum
@@ -229,7 +277,7 @@ class Manifold:
             # Find the surface
             distances, indices = self.tree.query(p, k=self.k + 1)
             
-            points_local: np.array = self.points[indices]
+            points_local = self.points[indices]
             points_local_transformed, params, R = self.__find_surface(points_local)
             
             a, b, c, d, e, f = params
@@ -264,6 +312,7 @@ class Manifold:
             
             # Normal vector at p
             normal = np.cross(r_u, r_v)
+            normal /= np.linalg.norm(normal)
             self.normal_vectors[i] = normal
 
             # Metric tensor in p
