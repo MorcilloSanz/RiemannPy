@@ -14,6 +14,21 @@ class Manifold:
     Estimates local differential geometry (tangent and normal spaces), builds
     a connectivity graph between neighboring points, and enables geodesic
     path computation along the manifold.
+    
+    It computes the following:
+    
+        - points: the points in ambient space coordinates (x,y,z).
+        - local_coordinats: the points in local coordinates (u,v) that would be given by a chart (rotated points projected into XY plane).
+        - normal_vectors: the normal vector (normalised) at each point.
+        - tangent_vectors: the tangent vectors (tangent space) at each point.
+        - metric_tensor: the metric tensor at each point.
+        - metric_tensor_inv: the inverse of the metric tensor at each point.
+        - metric_tensor_derivatives: the derivatives of the metric tensor at each point.
+        - christoffel_symbols: the christoffel symbols at each point.
+        - gaussian_curvature: the gaussian curvature at each point.
+        - scalar_curvature: the scalar curvature at each point.
+        - ricci_curvature_tensor: the ricci curvature tensor at each point.
+        - riemann_curvature_tensor: the riemann curvature tensor at each point.
     """
     __MIN_NEIGHBORHOOD: int = 3
     
@@ -323,7 +338,10 @@ class Manifold:
         
         self.christoffel_symbols = np.zeros((self.points.shape[0], 2, 2, 2))
         
-        self.gaussian_curvature = np.zeros((self.points.shape[0]))
+        self.gaussian_curvature = np.zeros((self.points.shape[0]),)
+        self.scalar_curvature = np.zeros((self.points.shape[0]),)
+        self.ricci_curvature_tensor = np.zeros((self.points.shape[0], 2, 2))
+        self.riemann_curvature_tensor = np.zeros((self.points.shape[0], 2, 2, 2, 2))
         
         for i, p in enumerate(self.points):
 
@@ -385,7 +403,20 @@ class Manifold:
             K = self.__compute_gaussian_curvature(params, normal, u, v)
             self.gaussian_curvature[i] = K
             
-
+            # Scalar curvature
+            self.scalar_curvature[i] = 2 * K
+            
+            # Ricci curvature tensor
+            self.ricci_curvature_tensor[i] = metric_tensor * K
+            
+            # Riemann curvature tensor
+            det_g = metric_tensor[0, 0] * metric_tensor[1, 1] - metric_tensor[0, 1] * metric_tensor[1, 0]
+            
+            self.riemann_curvature_tensor[i][0, 1, 0, 1] =  K * det_g
+            self.riemann_curvature_tensor[i][0, 1, 1, 0] = -K * det_g
+            self.riemann_curvature_tensor[i][1, 0, 0, 1] = -K * det_g
+            self.riemann_curvature_tensor[i][1, 0, 1, 0] =  K * det_g
+            
     def geodesic(self, start_index: int, end_index: int) -> tuple[np.array, float]:
         """
         Computes a discrete geodesic path between two sample points on the manifold,

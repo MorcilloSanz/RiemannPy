@@ -5,6 +5,7 @@ import numpy as np
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from pydiffold.manifold import Manifold
+from pydiffold.field import ScalarField
 
 
 def sample_sphere(n_points=1000, radius=1.0) -> np.array:
@@ -45,3 +46,12 @@ if __name__ == "__main__":
     print(f'\033[1;32mChristoffel symbols\033[0m Γ^σ_μν(p):\n {manifold.christoffel_symbols}\n')
     
     print(f'\033[1;32mGaussian curvature\033[0m K(p):\n {manifold.gaussian_curvature}\n')
+    print(f'\033[1;32mRicci tensor\033[0m R^μν(p):\n {manifold.ricci_curvature_tensor}\n')
+    
+    values = np.zeros((manifold.points.shape[0]))
+    for i, p in enumerate(manifold.points):
+        values[i] = np.sin(p[0]) + np.cos(p[1])
+    
+    phi = ScalarField(manifold, values)
+    
+    print(f'\033[1;32mLaplace-Beltrami\033[0m Δϕ(p):\n {phi.laplacian}\n')
