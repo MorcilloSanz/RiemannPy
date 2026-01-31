@@ -14,21 +14,6 @@ class Manifold:
     Estimates local differential geometry (tangent and normal spaces), builds
     a connectivity graph between neighboring points, and enables geodesic
     path computation along the manifold.
-    
-    It computes the following:
-    
-        - points: the points in ambient space coordinates (x,y,z).
-        - local_coordinats: the points in local coordinates (u,v) that would be given by a chart (rotated points projected into XY plane).
-        - normal_vectors: the normal vector (normalised) at each point.
-        - tangent_vectors: the tangent vectors (tangent space) at each point.
-        - metric_tensor: the metric tensor at each point.
-        - metric_tensor_inv: the inverse of the metric tensor at each point.
-        - metric_tensor_derivatives: the derivatives of the metric tensor at each point.
-        - christoffel_symbols: the christoffel symbols at each point.
-        - gaussian_curvature: the gaussian curvature at each point.
-        - scalar_curvature: the scalar curvature at each point.
-        - ricci_curvature_tensor: the ricci curvature tensor at each point.
-        - riemann_curvature_tensor: the riemann curvature tensor at each point.
     """
     __MIN_NEIGHBORHOOD: int = 3
     
@@ -39,9 +24,9 @@ class Manifold:
         self.tree = KDTree(points)
         self.graph: nx.Graph = nx.Graph()
         
-        self.__init_tensors()
+        self._init_tensors()
 
-    def __find_surface(self, points_local: np.ndarray) -> np.ndarray:
+    def _find_surface(self, points_local: np.ndarray) -> np.ndarray:
         """
         Fits a plane to a set of local points and transforms them to a local coordinate system.
 
@@ -64,7 +49,7 @@ class Manifold:
 
         return X_local, params, R
     
-    def __compute_surface_derivatives(self, params: np.ndarray, u: float, v: float) -> tuple[float, float]:
+    def _compute_surface_derivatives(self, params: np.ndarray, u: float, v: float) -> tuple[float, float]:
         """
         Computes the partial derivatives of the paraboloid f_u and f_v at a point p = (u, v).
         
@@ -83,7 +68,7 @@ class Manifold:
         
         return f_u, f_v
     
-    def __compute_surface_second_derivatives(self, params: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
+    def _compute_surface_second_derivatives(self, params: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
         """
         Computes the partial second derivatives of the paraboloid f_uu, f_uv and f_vv at a point p = (u, v).
         
@@ -103,8 +88,7 @@ class Manifold:
         
         return f_uu, f_uv, f_vv
         
-
-    def __compute_tangent_vectors(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
+    def _compute_tangent_vectors(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the tangent vectors of a quadratic surface at a given
         p = (u, v) in local coordiantes.
@@ -124,14 +108,14 @@ class Manifold:
                 - r_u: Tangent vector in the direction of increasing x.
                 - r_v: Tangent vector in the direction of increasing y.
         """
-        f_u, f_v = self.__compute_surface_derivatives(params, u, v)
+        f_u, f_v = self._compute_surface_derivatives(params, u, v)
 
         r_u = np.array([1, 0, f_u])
         r_v = np.array([0, 1, f_v])
 
         return r_u, r_v
     
-    def __compute_first_fundamental_form(self, params: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
+    def _compute_first_fundamental_form(self, params: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
         """
         Computes the first fundamental form at a given point p = (u, v) in local coordiantes.
 
@@ -143,7 +127,7 @@ class Manifold:
         Returns:
             tuple[float, float, float]: E, F, G terms of the first fundamental form.
         """
-        f_u, f_v = self.__compute_surface_derivatives(params, u, v)
+        f_u, f_v = self._compute_surface_derivatives(params, u, v)
         
         E = 1 + f_u**2
         F = f_u * f_v
@@ -151,7 +135,7 @@ class Manifold:
         
         return E, F, G
     
-    def __compute_second_fundamental_form(self, params: np.ndarray, normal: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
+    def _compute_second_fundamental_form(self, params: np.ndarray, normal: np.ndarray, u: float, v: float) -> tuple[float, float, float]:
         """
         Computes the second fundamental form at a given point p = (u, v) in local coordiantes.
 
@@ -164,7 +148,7 @@ class Manifold:
         Returns:
             tuple[float, float, float]: L, M, N terms of the second fundamental form.
         """
-        f_uu, f_uv, f_vv = self.__compute_surface_second_derivatives(params, u, v)
+        f_uu, f_uv, f_vv = self._compute_surface_second_derivatives(params, u, v)
         
         r_uu = np.array([0, 0, f_uu])
         r_uv = np.array([0, 0, f_uv])
@@ -176,7 +160,7 @@ class Manifold:
         
         return L, M, N
         
-    def __compute_metric_tensor(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
+    def _compute_metric_tensor(self, params: np.ndarray, u: float, v: float) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the metric tensor g_{μν} and its inverse g^{μν} at a given 
         point p = (u, v) in local coordiantes.
@@ -191,7 +175,7 @@ class Manifold:
                 - g: the metric tensor at a given point p = (u, v)
                 - g_inv: the inverse metric tensor at a given point p = (u, v)
         """
-        E, F, G = self.__compute_first_fundamental_form(params, u, v)
+        E, F, G = self._compute_first_fundamental_form(params, u, v)
         
         g = np.array([
             [E, F],
@@ -205,7 +189,7 @@ class Manifold:
         
         return g, g_inv
     
-    def __compute_metric_tensor_derivatives(self, params: np.ndarray, u: float, v: float) -> np.ndarray:
+    def _compute_metric_tensor_derivatives(self, params: np.ndarray, u: float, v: float) -> np.ndarray:
         """
         Computes the metric tensor derivatives ∂_α g_{μν} at a given 
         point p = (u, v) in local coordinates.
@@ -251,7 +235,7 @@ class Manifold:
         
         return metric_tensor_derivatives
     
-    def __compute_christoffel_symbols(self, metric_tensor_inv: np.ndarray, metric_tensor_derivatives: np.ndarray) -> np.ndarray:
+    def _compute_christoffel_symbols(self, metric_tensor_inv: np.ndarray, metric_tensor_derivatives: np.ndarray) -> np.ndarray:
         """
         Computes the Christoffel symbols of the second kind at each sample point
         using the metric tensor and its partial derivatives.
@@ -307,7 +291,7 @@ class Manifold:
         
         return christoffel_symbols
     
-    def __compute_gaussian_curvature(self, params: np.ndarray, normal: np.ndarray, u: float, v: float) -> float:
+    def _compute_gaussian_curvature(self, params: np.ndarray, normal: np.ndarray, u: float, v: float) -> float:
         """
         Computes the gaussian curvature K at a given point p = (u, v).
 
@@ -320,13 +304,28 @@ class Manifold:
         Returns:
             float: the gaussian curvature K.
         """
-        E, F, G = self.__compute_first_fundamental_form(params, u, v)
-        L, M, N = self.__compute_second_fundamental_form(params, normal, u, v)
+        E, F, G = self._compute_first_fundamental_form(params, u, v)
+        L, M, N = self._compute_second_fundamental_form(params, normal, u, v)
         
         return (L*N - M**2) / (E*G - F**2)
 
-    def __init_tensors(self) -> None:
-        
+    def _init_tensors(self) -> None:
+        """
+        It computes the following tensors:
+    
+            - points: the points in ambient space coordinates (x,y,z).
+            - local_coordinats: the points in local coordinates (u,v) that would be given by a chart (rotated points projected into XY plane).
+            - normal_vectors: the normal vector (normalised) at each point.
+            - tangent_vectors: the tangent vectors (tangent space) at each point.
+            - metric_tensor: the metric tensor at each point.
+            - metric_tensor_inv: the inverse of the metric tensor at each point.
+            - metric_tensor_derivatives: the derivatives of the metric tensor at each point.
+            - christoffel_symbols: the christoffel symbols at each point.
+            - gaussian_curvature: the gaussian curvature at each point.
+            - scalar_curvature: the scalar curvature at each point.
+            - ricci_curvature_tensor: the ricci curvature tensor at each point.
+            - riemann_curvature_tensor: the riemann curvature tensor at each point.
+        """
         self.local_coordinates = np.zeros((self.points.shape[0], 2)) # Given by a chart φ
         
         self.normal_vectors = np.zeros((self.points.shape[0], 3))
@@ -349,7 +348,7 @@ class Manifold:
             distances, indices = self.tree.query(p, k=self.k + 1)
             
             points_local = self.points[indices]
-            points_local_transformed, params, R = self.__find_surface(points_local)
+            points_local_transformed, params, R = self._find_surface(points_local)
             
             a, b, c, d, e, f = params
             # plot_paraboloid(points_local_transformed, params)
@@ -374,7 +373,7 @@ class Manifold:
             self.local_coordinates[i] = [u, v]
 
             # Transformed tangent vectors at p
-            r_u_transformed, r_v_transformed = self.__compute_tangent_vectors(params, u, v)
+            r_u_transformed, r_v_transformed = self._compute_tangent_vectors(params, u, v)
 
             # Tangent vectors at p. This is in ambient space coordinates, not local coordinates.
             r_u = R.T @ r_u_transformed
@@ -387,20 +386,20 @@ class Manifold:
             self.normal_vectors[i] = normal
 
             # Metric tensor in p
-            metric_tensor, metric_tensor_inv = self.__compute_metric_tensor(params, u, v)
+            metric_tensor, metric_tensor_inv = self._compute_metric_tensor(params, u, v)
             self.metric_tensor[i] = metric_tensor
             self.metric_tensor_inv[i] = metric_tensor_inv
             
             # Metric tensor derivatives
-            metric_tensor_derivatives = self.__compute_metric_tensor_derivatives(params, u, v)
+            metric_tensor_derivatives = self._compute_metric_tensor_derivatives(params, u, v)
             self.metric_tensor_derivatives[i] = metric_tensor_derivatives
             
             # Christoffel symbols
-            christoffel_symbols = self.__compute_christoffel_symbols(metric_tensor_inv, metric_tensor_derivatives)
+            christoffel_symbols = self._compute_christoffel_symbols(metric_tensor_inv, metric_tensor_derivatives)
             self.christoffel_symbols[i] = christoffel_symbols
             
             # Gaussian curvature
-            K = self.__compute_gaussian_curvature(params, normal, u, v)
+            K = self._compute_gaussian_curvature(params, normal, u, v)
             self.gaussian_curvature[i] = K
             
             # Scalar curvature
