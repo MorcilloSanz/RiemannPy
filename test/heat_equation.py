@@ -9,72 +9,70 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from pydiffold.manifold import Manifold
 from pydiffold.field import ScalarField
 
-
-ALPHA = 0.2
+ALPHA = 0.25
 DELTA_T = 1.0
-ITERATIONS = 10
-
+TOTAL_STEPS = 100
+PLOTS_TO_SHOW = 5
 
 def solve_equation(phi: ScalarField) -> None:
-    phi.values = phi.values + DELTA_T * ALPHA * phi.laplacian
-
+    phi.values = phi.values - DELTA_T * ALPHA * phi.laplacian
 
 if __name__ == "__main__":
     
+    # Load Standford Bunny
     test_path = str(Path(__file__).resolve().parent)
+    points_file = Path(test_path) / "assets" / "bunny.txt"
     
-    # Load manifold
-    points = np.loadtxt(test_path + '/assets/bunny.txt')
+    # Create Manifold
+    points = np.loadtxt(str(points_file))
+    transform = np.array([[1, 0, 0], [0, 0, 1], [0, 1, 0]])
+    points = points @ transform.T
     manifold = Manifold(points)
     
-    # Scalar field at t=0
-    values = np.sin(manifold.points[:, 0] * 1.5) + np.cos(manifold.points[:, 1] * 1.5)
-    phi = ScalarField(manifold, values)
-        
-    # List to store the state at each step for plotting
-    history = [phi.values.copy()]
-
-    # Solve the equation
-    for t in range(ITERATIONS):
+    # Temperature scalar field at t=0
+    init_values = np.sin(manifold.points[:, 0] * 1.5) + np.cos(manifold.points[:, 1] * 1.5)
+    phi = ScalarField(manifold, init_values)
+    
+    # Solve equation
+    history = []
+    interval = TOTAL_STEPS // (PLOTS_TO_SHOW - 1)
+    
+    for t in range(TOTAL_STEPS + 1):
+        if t % interval == 0:
+            history.append((t, phi.values.copy()))
         solve_equation(phi)
-        history.append(phi.values.copy())
         
-    # --- Plotting Section ---
-    n_plots = len(history)
-    cols = 4
-    rows = (n_plots + cols - 1) // cols
+    # --- Plotting ---
+    plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
+    fig = plt.figure(figsize=(22, 6))
     
-    fig = plt.figure(figsize=(18, 4 * rows))
-    
-    # Set global color limits so the scale remains constant across all plots
-    v_min = min(h.min() for h in history)
-    v_max = max(h.max() for h in history)
+    v_min, v_max = history[0][1].min(), history[0][1].max()
+    x_range = [points[:, 0].min(), points[:, 0].max()]
+    y_range = [points[:, 1].min(), points[:, 1].max()]
+    z_range = [points[:, 2].min(), points[:, 2].max()]
 
-    for i, values in enumerate(history):
-        ax = fig.add_subplot(rows, cols, i + 1, projection='3d')
+    for i, (step, state_values) in enumerate(history):
+        ax = fig.add_subplot(1, 5, i + 1, projection='3d')
         
-        # Scatter plot of the bunny points
         scatter = ax.scatter(
-            manifold.points[:, 0], 
-            manifold.points[:, 1], 
-            manifold.points[:, 2], 
-            c=values, 
-            cmap='magma', 
-            s=1.5, # Point size
-            vmin=v_min, 
-            vmax=v_max
+            manifold.points[:, 0], manifold.points[:, 1], manifold.points[:, 2], 
+            c=state_values, cmap='gist_heat', s=1.0, 
+            vmin=v_min, vmax=v_max, antialiased=True
         )
         
-        ax.set_title(f"Iteration {i}")
-        ax.set_axis_off() # Hide axes for a cleaner look
-        ax.view_init(elev=15, azim=45) # Set a nice viewing angle
+        # Zoom
+        ax.set_xlim(x_range); ax.set_ylim(y_range); ax.set_zlim(z_range)
+        ax.set_box_aspect((x_range[1]-x_range[0], y_range[1]-y_range[0], z_range[1]-z_range[0]))
+        ax.dist = 7 
+        
+        ax.set_axis_off()
+        ax.set_title(f"Step {step}\n$t = {step * DELTA_T}s$", pad=-15, fontsize=12)
+        ax.view_init(elev=15, azim=90)
 
-    # Add a global colorbar
-    cbar_ax = fig.add_axes([0.92, 0.2, 0.02, 0.6])
-    fig.colorbar(scatter, cax=cbar_ax, label='Temperature ($\phi$)')
+    cbar_ax = fig.add_axes([0.93, 0.25, 0.01, 0.5])
+    fig.colorbar(scatter, cax=cbar_ax).set_label('Temperature ($\phi$)', rotation=270, labelpad=15)
     
-    plt.suptitle("Heat Equation Evolution on Bunny Manifold", fontsize=18)
-    plt.subplots_adjust(right=0.9, wspace=0.05, hspace=0.2)
+    plt.suptitle("Heat Equation Diffusion on the Stanford Bunny Manifold", fontsize=16, y=0.95)
+    plt.subplots_adjust(left=0.01, right=0.91, wspace=0.0, hspace=0.0)
     
     plt.show()
-    

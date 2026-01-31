@@ -1,0 +1,93 @@
+import sys
+from pathlib import Path
+import numpy as np
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from pydiffold.manifold import Manifold
+from pydiffold.field import ScalarField
+
+C_SQUARED = 0.25 
+DELTA_T = 0.5
+TOTAL_STEPS = 100
+PLOTS_TO_SHOW = 5
+
+# Global variables to store the state for the second-order derivative
+u_current = None
+u_prev = None
+
+def solve_wave_equation(u: ScalarField) -> None:
+    global u_current, u_prev
+    
+    # Numerical Leapfrog integration:
+    # u_next = 2*u_curr - u_prev + (dt^2 * c^2 * Laplacian)
+    # Note: Using -u.laplacian because of the discrete Laplacian sign convention in your lib
+    acceleration = -C_SQUARED * u.laplacian
+    u_next = 2 * u_current - u_prev + (DELTA_T**2) * acceleration
+    
+    # Update states
+    u_prev = u_current.copy()
+    u_current = u_next.copy()
+    u.values = u_current
+
+if __name__ == "__main__":
+    
+    test_path = str(Path(__file__).resolve().parent)
+    points_file = Path(test_path) / "assets" / "bunny.txt"
+    
+    points = np.loadtxt(str(points_file))
+    transform = np.array([[1, 0, 0], [0, 0, 1], [0, 1, 0]])
+    points = points @ transform.T
+    manifold = Manifold(points)
+    
+    # Initial Condition (the "pluck" or displacement of the wave)
+    init_values = np.sin(manifold.points[:, 0]) + np.cos(manifold.points[:, 1]) * 0.3
+    u = ScalarField(manifold, init_values)
+    
+    # Initialize wave states
+    u_current = init_values.copy()
+    u_prev = init_values.copy() # Velocity is zero at t=0
+    
+    history = []
+    interval = TOTAL_STEPS // (PLOTS_TO_SHOW - 1)
+    
+    for t in range(TOTAL_STEPS + 1):
+        if t % interval == 0:
+            history.append((t, u.values.copy()))
+        solve_wave_equation(u)
+        
+    # --- Plotting ---
+    plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
+    fig = plt.figure(figsize=(22, 6))
+    
+    # For waves, we use a divergent colormap (like 'RdBu_r') to see oscillations
+    v_limit = max(abs(history[0][1].min()), abs(history[0][1].max()))
+    x_range = [points[:, 0].min(), points[:, 0].max()]
+    y_range = [points[:, 1].min(), points[:, 1].max()]
+    z_range = [points[:, 2].min(), points[:, 2].max()]
+
+    for i, (step, state_values) in enumerate(history):
+        ax = fig.add_subplot(1, 5, i + 1, projection='3d')
+        
+        scatter = ax.scatter(
+            manifold.points[:, 0], manifold.points[:, 1], manifold.points[:, 2], 
+            c=state_values, cmap='jet', s=1.0, 
+            vmin=-v_limit, vmax=v_limit, antialiased=True
+        )
+        
+        ax.set_xlim(x_range); ax.set_ylim(y_range); ax.set_zlim(z_range)
+        ax.set_box_aspect((x_range[1]-x_range[0], y_range[1]-y_range[0], z_range[1]-z_range[0]))
+        ax.dist = 7
+        
+        ax.set_axis_off()
+        ax.set_title(f"Step {step}\n$t = {step * DELTA_T}s$", pad=-15, fontsize=12)
+        ax.view_init(elev=15, azim=90)
+
+    cbar_ax = fig.add_axes([0.93, 0.25, 0.01, 0.5])
+    fig.colorbar(scatter, cax=cbar_ax).set_label('Displacement ($u$)', rotation=270, labelpad=15)
+    
+    plt.suptitle("Wave Equation Propagation on the Stanford Bunny Manifold", fontsize=16, y=0.95)
+    plt.subplots_adjust(left=0.01, right=0.91, wspace=0.0, hspace=0.0)
+    plt.show()
