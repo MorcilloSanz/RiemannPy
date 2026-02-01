@@ -32,10 +32,10 @@ if __name__ == "__main__":
     y = points[:, 1]
     z = points[:, 2]
 
-    # Normal components
-    u = manifold.normal_bundle[:, 0]
-    v = manifold.normal_bundle[:, 1]
-    w = manifold.normal_bundle[:, 2]
+    # Normal component
+    u = manifold.normal_vectors[:, 0]
+    v = manifold.normal_vectors[:, 1]
+    w = manifold.normal_vectors[:, 2]
 
     # Plot
     fig = plt.figure()
@@ -43,6 +43,12 @@ if __name__ == "__main__":
 
     ax.scatter(x, y, z, c='blue', s=0.25)
     ax.quiver(x, y, z, u, v, w, normalize=False, color='red', linewidth=0.3)
+    
+    ax.set_box_aspect([
+        x.max() - x.min(),
+        y.max() - y.min(),
+        z.max() - z.min()
+    ])
 
     ax.set_axis_off()
     ax.grid(False)

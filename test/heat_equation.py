@@ -1,110 +1,78 @@
 import sys
 from pathlib import Path
 
-import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from pydiffold.manifold import Manifold
-from pydiffold.function import ScalarField
+from pydiffold.field import ScalarField
 
+ALPHA = 0.25
+DELTA_T = 1.0
+TOTAL_STEPS = 100
+PLOTS_TO_SHOW = 5
 
-ALPHA: float = 0.2
-DELTA_T: float = 1.0
-HEAT_SCALE_LAPLACIAN: float = 2
-
-animation_running: bool = False
-
-
-def get_colors(phi: ScalarField) -> np.array:
-    """
-    Generate RGB colors from a scalar field using the gist_heat colormap.
-
-    Args:
-        phi (ScalarField): Scalar field defined on the manifold.
-
-    Returns:
-        np.array: An array of RGB colors (Nx3), where N is the number of points.
-    """
-    # Normalize phi values to [0,1] for colormap
-    phi_values = phi.values
-    phi_min, phi_max = phi_values.min(), phi_values.max()
-    phi_normalized = (phi_values - phi_min) / (phi_max - phi_min)
-
-    # Generate colors using matplotlib's colormap
-    cmap = plt.get_cmap("gist_heat")
-    colors_rgba = cmap(phi_normalized)  # Returns RGBA colors
-    colors = colors_rgba[:, :3]  # Use only RGB
-    
-    return colors
-
-
-def solve_equation(phi: ScalarField, pcd: o3d.geometry.PointCloud) -> None:
-    """
-    Perform one step of the heat equation and update the point cloud colors.
-
-    Args:
-        phi (ScalarField): The scalar field to be updated via the heat equation.
-        pcd (o3d.geometry.PointCloud): The point cloud whose colors are updated.
-    """
-    phi.values = phi.values + DELTA_T * ALPHA * phi.compute_laplace_beltrami(t=HEAT_SCALE_LAPLACIAN)
-    pcd.colors = o3d.utility.Vector3dVector(get_colors(phi))
-
-
-def toggle_animation(vis):
-    """
-    Key callback to start the animation when 'A' is pressed.
-    """
-    global animation_running
-    animation_running = not animation_running
-    return False  # Return False to keep the window open
-
+def solve_equation(phi: ScalarField) -> None:
+    phi.values = phi.values - DELTA_T * ALPHA * phi.laplacian
 
 if __name__ == "__main__":
     
-    print('\033[1;95mToggle animation pressing A\033[0m')
+    # Load Standford Bunny
+    test_path = str(Path(__file__).resolve().parent)
+    points_file = Path(test_path) / "assets" / "bunny.txt"
     
-    # Load points
-    test_path: str = str(Path(__file__).resolve().parent)
-    points: np.array = np.loadtxt(test_path + '/assets/bunny.txt')
+    # Create Manifold
+    points = np.loadtxt(str(points_file))
+    transform = np.array([[1, 0, 0], [0, 0, 1], [0, 1, 0]])
+    points = points @ transform.T
+    manifold = Manifold(points)
     
-    # Compute manifold
-    manifold: Manifold = Manifold(points)
-
-    # Compute phi function
-    phi: ScalarField = ScalarField(manifold)
-    for i in range(points.shape[0]):
-        coords: np.array = manifold.points[i]
-        phi.set_value(np.sin(coords[0] * 1.5) + np.cos(coords[1] * 1.5), i)
+    # Temperature scalar field at t=0
+    init_values = np.sin(manifold.points[:, 0] * 1.5) + np.cos(manifold.points[:, 1] * 1.5)
+    phi = ScalarField(manifold, init_values)
+    
+    # Solve equation
+    history = []
+    interval = TOTAL_STEPS // (PLOTS_TO_SHOW - 1)
+    
+    for t in range(TOTAL_STEPS + 1):
+        if t % interval == 0:
+            history.append((t, phi.values.copy()))
+        solve_equation(phi)
         
-    # Create pcd for Open3D
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
+    # --- Plotting ---
+    plt.rcParams.update({'font.family': 'serif', 'font.size': 10})
+    fig = plt.figure(figsize=(22, 6))
     
-    colors: np.array = get_colors(phi)
-    pcd.colors = o3d.utility.Vector3dVector(colors)
-    
-    # 3D viewer
-    vis = o3d.visualization.VisualizerWithKeyCallback()
-    vis.create_window(width=300, height=300)
-    vis.add_geometry(pcd)
-    
-    render_option = vis.get_render_option()
-    render_option.point_size = 8
-    
-    # Animation callback
-    def timer_callback(vis):
-        if animation_running:
-            solve_equation(phi, pcd)
-            vis.update_geometry(pcd)
-        vis.poll_events()
-        vis.update_renderer()
-        return False
-    
-    vis.register_animation_callback(timer_callback)
-    vis.register_key_callback(ord("A"), toggle_animation)
+    v_min, v_max = history[0][1].min(), history[0][1].max()
+    x_range = [points[:, 0].min(), points[:, 0].max()]
+    y_range = [points[:, 1].min(), points[:, 1].max()]
+    z_range = [points[:, 2].min(), points[:, 2].max()]
 
-    # Show
-    vis.run()
-    vis.destroy_window()
+    for i, (step, state_values) in enumerate(history):
+        ax = fig.add_subplot(1, 5, i + 1, projection='3d')
+        
+        scatter = ax.scatter(
+            manifold.points[:, 0], manifold.points[:, 1], manifold.points[:, 2], 
+            c=state_values, cmap='gist_heat', s=1.0, 
+            vmin=v_min, vmax=v_max, antialiased=True
+        )
+        
+        # Zoom
+        ax.set_xlim(x_range); ax.set_ylim(y_range); ax.set_zlim(z_range)
+        ax.set_box_aspect((x_range[1]-x_range[0], y_range[1]-y_range[0], z_range[1]-z_range[0]))
+        ax.dist = 7 
+        
+        ax.set_axis_off()
+        ax.set_title(f"Step {step}\n$t = {step * DELTA_T}s$", pad=-15, fontsize=12)
+        ax.view_init(elev=15, azim=90)
+
+    cbar_ax = fig.add_axes([0.93, 0.25, 0.01, 0.5])
+    fig.colorbar(scatter, cax=cbar_ax).set_label('Temperature ($\phi$)', rotation=270, labelpad=15)
+    
+    plt.suptitle("Heat Equation Diffusion on the Stanford Bunny Manifold", fontsize=16, y=0.95)
+    plt.subplots_adjust(left=0.01, right=0.91, wspace=0.0, hspace=0.0)
+    
+    plt.show()

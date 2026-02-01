@@ -5,38 +5,53 @@ import numpy as np
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from pydiffold.manifold import Manifold
-from pydiffold.function import ScalarField
+from pydiffold.field import ScalarField
+
+
+def sample_sphere(n_points=1000, radius=1.0) -> np.array:
+    """Generate uniformly distributed random points on the surface of a sphere.
+
+    Args:
+        n_points (int, optional): Number of points to sample. Defaults to 1000.
+        radius (float, optional): Radius of the sphere. Defaults to 1.0.
+
+    Returns:
+        numpy.ndarray: Array of shape (n_points, 3) containing the sampled 3D points
+        on the sphere's surface.
+    """
+    # Random angles
+    phi = np.random.uniform(0, 2 * np.pi, n_points)
+    cos_theta = np.random.uniform(-1, 1, n_points)
+    theta = np.arccos(cos_theta)
+
+    # Convert spherical to Cartesian coordinates
+    x = radius * np.sin(theta) * np.cos(phi)
+    y = radius * np.sin(theta) * np.sin(phi)
+    z = radius * cos_theta
+
+    return np.vstack((x, y, z)).T
 
 
 if __name__ == "__main__":
-    
-    test_path: str = str(Path(__file__).resolve().parent)
-    points: np.array = np.loadtxt(test_path + '/assets/bunny.txt')
+
+    points = sample_sphere(n_points=5000, radius=100)
     manifold = Manifold(points)
     
-    print(f'\033[1;95mManifold normal bundle:\033[0m\n {manifold.normal_bundle}')
-    print(f'\033[1;95mManifold tangent bundle:\033[0m\n {manifold.tangent_bundle}')
-    print(f'\033[1;95mMetric tensor:\033[0m\n {manifold.metric_tensor}')
-    print(f'\033[1;95mInverse metric tensor:\033[0m\n {manifold.metric_tensor_inv}')
-    print(f'\033[1;95mMetric tensor derivatives ∂_μ g, ∂_ν g:\033[0m\n {manifold.metric_tensor_derivatives}')
-    print(f'\033[1;95mChristoffel symbols Γ^σ_μν:\033[0m\n {manifold.christoffel_symbols}')
-    print(f'\033[1;95mChristoffel symbols derivatives ∂_μ Γ, ∂_ν Γ:\033[0m\n {manifold.christoffel_symbols_derivatives}')
-    print(f'\033[1;95mRiemann curvature tensor:\033[0m\n {manifold.riemann_tensor}')
-    print(f'\033[1;95mRicci tensor:\033[0m\n {manifold.ricci_tensor}')
-    print(f'\033[1;95mRicci scalar:\033[0m\n {manifold.ricci_scalar}')
-    print(f'\033[1;95mGauss curvature:\033[0m\n {manifold.gauss_curvature}')
-    print('\n')
-
-    geodesic, arc_length = manifold.geodesic(0, 2000)
-    print(f'\033[1;95mGeodesic of arc length {arc_length}:\033[0m\n {geodesic}')
-    print(f'\033[1;95mGeodesic vertex coordinates:\033[0m\n {manifold.points[geodesic]}')
-    print('\n')
+    print(f'\033[1;32mLocal coordinates\033[0m given by a chart φ : M -> R^2\n {manifold.local_coordinates}\n')
     
-    function: ScalarField = ScalarField(manifold)
-    for i in range(points.shape[0]):
-        function.set_value(np.random.uniform(0, 10), i)
-        
-    print(f'\033[1;95mFunction values shape:\033[0m\n {function.values.shape}')
-    print(f'\033[1;95mPartial derivatives ∂_μ f, ∂_ν f:\033[0m\n {function.compute_partial_derivatives()}')
-    print(f'\033[1;95mSurface gradient:\033[0m\n {function.compute_surface_gradient()}')
-    print(f'\033[1;95mLaplace Beltrami:\033[0m\n {function.compute_laplace_beltrami(t=1)}')
+    print(f'\033[1;32mMetric tensor\033[0m g_μν(p):\n {manifold.metric_tensor}\n')
+    print(f'\033[1;32mMetric tensor inverse\033[0m g^μν(p):\n {manifold.metric_tensor}\n')
+    print(f'\033[1;32mMetric tensor derivatives\033[0m ∂_α g_μν(p):\n {manifold.metric_tensor_derivatives}\n')
+    
+    print(f'\033[1;32mChristoffel symbols\033[0m Γ^σ_μν(p):\n {manifold.christoffel_symbols}\n')
+    
+    print(f'\033[1;32mGaussian curvature\033[0m K(p):\n {manifold.gaussian_curvature}\n')
+    print(f'\033[1;32mRicci tensor\033[0m R^μν(p):\n {manifold.ricci_curvature_tensor}\n')
+    
+    values = np.zeros((manifold.points.shape[0]))
+    for i, p in enumerate(manifold.points):
+        values[i] = np.sin(p[0]) + np.cos(p[1])
+    
+    phi = ScalarField(manifold, values)
+    
+    print(f'\033[1;32mLaplace-Beltrami\033[0m Δϕ(p):\n {phi.laplacian}\n')
