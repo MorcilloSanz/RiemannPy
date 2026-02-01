@@ -1,4 +1,4 @@
-# RiemannPy :earth_americas:
+# RiemannPy
 `RiemannPy` is a Python library for `Differential Geometry`, more specifically `Riemannian Geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
 
 The library is designed to facilitate numerical experimentation in geometry processing and geometric PDEs by operating directly on sampled surfaces, without requiring explicit mesh connectivity.
