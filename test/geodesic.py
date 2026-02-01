@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from pydiffold.manifold import Manifold
+from riemannpy.manifold import Manifold
 
 
 if __name__ == "__main__":

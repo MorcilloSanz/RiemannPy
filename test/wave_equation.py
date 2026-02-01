@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from pydiffold.manifold import Manifold
-from pydiffold.field import ScalarField
+from riemannpy.manifold import Manifold
+from riemannpy.field import ScalarField
 
 C_SQUARED = 0.25 
 DELTA_T = 0.5
