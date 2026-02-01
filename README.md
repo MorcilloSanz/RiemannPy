@@ -1,9 +1,9 @@
-# PyDiffold :earth_americas:
-`PyDiffold` is a Python library for `differential geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
+# RiemannPy :earth_americas:
+`RiemannPy` is a Python library for `Differential Geometry`, more specifically `Riemannian Geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
 
 The library is designed to facilitate numerical experimentation in geometry processing and geometric PDEs by operating directly on sampled surfaces, without requiring explicit mesh connectivity.
 
-### PyDiffold for Partial Differential Equations
+### RiemannPy for Partial Differential Equations
 The `Laplace–Beltrami operator` was computed on the vertices of the Stanford Bunny, without relying on mesh connectivity. Based on this operator, the heat equation and the wave equation were solved on the surface of the model.
 
 ![](img/heat_equation.png)
@@ -32,7 +32,7 @@ Once the `Manifold` is initialized, all geometric tensors are precomputed and st
 
 ```python
 import numpy as np
-from pydiffold.manifold import Manifold
+from riemannpy.manifold import Manifold
 
 # 1. Initialize the manifold with a point cloud (N, 3)
 points = np.random.rand(100, 3)
@@ -75,8 +75,8 @@ The `ScalarField` class allows you to define a field (like temperature or pressu
 ```python
 import numpy as np
 
-from pydiffold.manifold import Manifold
-from pydiffold.field import ScalarField
+from riemannpy.manifold import Manifold
+from riemannpy.field import ScalarField
 
 # 1. Define Manifold
 points = np.random.rand(100, 3)
