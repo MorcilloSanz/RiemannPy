@@ -52,11 +52,12 @@ if __name__ == "__main__":
     z_range = [points[:, 2].min(), points[:, 2].max()]
 
     for i, (step, state_values) in enumerate(history):
+        
         ax = fig.add_subplot(1, 5, i + 1, projection='3d')
         
         scatter = ax.scatter(
             manifold.points[:, 0], manifold.points[:, 1], manifold.points[:, 2], 
-            c=state_values, cmap='gist_heat', s=1.0, 
+            c=state_values, cmap='gist_heat', s=6.0, 
             vmin=v_min, vmax=v_max, antialiased=True
         )
         
@@ -69,10 +70,10 @@ if __name__ == "__main__":
         ax.set_title(f"Step {step}\n$t = {step * DELTA_T}s$", pad=-15, fontsize=12)
         ax.view_init(elev=15, azim=90)
 
-    cbar_ax = fig.add_axes([0.93, 0.25, 0.01, 0.5])
-    fig.colorbar(scatter, cax=cbar_ax).set_label('Temperature ($\phi$)', rotation=270, labelpad=15)
+    #cbar_ax = fig.add_axes([0.93, 0.25, 0.01, 0.5])
+    #fig.colorbar(scatter, cax=cbar_ax).set_label('Temperature ($\phi$)', rotation=270, labelpad=15)
     
-    plt.suptitle("Heat Equation Diffusion on the Stanford Bunny Manifold", fontsize=16, y=0.95)
+    plt.suptitle("Heat Equation on the Stanford Bunny Manifold", fontsize=16, y=0.95)
     plt.subplots_adjust(left=0.01, right=0.91, wspace=0.0, hspace=0.0)
     
     plt.show()
