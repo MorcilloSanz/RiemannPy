@@ -3,6 +3,10 @@
 
 The library is designed to facilitate numerical experimentation in geometry processing and geometric PDEs by operating directly on sampled surfaces, without requiring explicit mesh connectivity.
 
+### RiemannPy for computing the curvature of a sampled surface
+The `scalar curvature` was derived by computing the gaussian curvature from the first and second fundamental forms of local fitted paraboloids.
+![](img/curvature.png)
+
 ### RiemannPy for Partial Differential Equations
 The `Laplace–Beltrami operator` was computed on the vertices of the Stanford Bunny, without relying on mesh connectivity. Based on this operator, the heat equation and the wave equation were solved on the surface of the model.
 
@@ -25,6 +29,9 @@ The `Manifold` class computes and stores the following differential geometry ent
 * **`scalar_curvature`**: The scalar curvature $R$, which for 2D manifolds is $2K$.
 * **`ricci_curvature_tensor`**: The Ricci curvature tensor, defined as $R_{\mu\nu} = K g_{\mu\nu}$.
 * **`riemann_curvature_tensor`**: The Riemann curvature tensor $R_{\mu\nu\sigma\rho}$, where the non-zero components are determined by $K$ and the metric determinant $\det(g)$.
+
+It also allows computing the geodesic between two points.
+* **`geodesic`:** Computes the geodesic and its arclength between two points.
 
 ### 🚀 Usage Example: Accessing Manifold Properties
 
