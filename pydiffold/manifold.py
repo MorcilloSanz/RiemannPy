@@ -314,7 +314,7 @@ class Manifold:
         It computes the following tensors:
     
             - points: the points in ambient space coordinates (x,y,z).
-            - local_coordinats: the points in local coordinates (u,v) that would be given by a chart (rotated points projected into XY plane).
+            - local_coordinates: the points in local coordinates (u,v) that would be given by a chart (rotated points projected into XY plane).
             - normal_vectors: the normal vector (normalised) at each point.
             - tangent_vectors: the tangent vectors (tangent space) at each point.
             - metric_tensor: the metric tensor at each point.
