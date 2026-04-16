@@ -1,15 +1,12 @@
 # RiemannPy
-<table>
-    <tr>
-        <td>
-        `RiemannPy` is a Python library for `Differential Geometry`, more specifically `Riemannian Geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
-        The library is designed to facilitate numerical experimentation in geometry processing and geometric PDEs by operating directly on sampled surfaces, without requiring explicit mesh connectivity.
-        </td>
-        <td width="200">
-            <img src="img/logo.png" width="200"/>
-        </td>
-    </tr>
-</table>
+
+<p align="center">
+    <img src="img/logo.png" width="100"/>
+</p>
+
+`RiemannPy` is a Python library for `Differential Geometry`, more specifically `Riemannian Geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
+
+The library is designed to facilitate numerical experimentation in geometry processing and geometric PDEs by operating directly on sampled surfaces, without requiring explicit mesh connectivity.
 
 ### RiemannPy for computing the curvature of a sampled surface
 The `scalar curvature` was derived by computing the gaussian curvature from the first and second fundamental forms of local fitted paraboloids.
