@@ -15,7 +15,8 @@ TOTAL_STEPS = 100
 PLOTS_TO_SHOW = 5
 
 def solve_equation(phi: ScalarField) -> None:
-    phi.values = phi.values - DELTA_T * ALPHA * phi.laplacian
+    phi.compute_differential_operators()
+    phi.values = phi.values + DELTA_T * ALPHA * phi.laplacian
 
 if __name__ == "__main__":
     
