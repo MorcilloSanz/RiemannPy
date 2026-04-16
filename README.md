@@ -1,8 +1,6 @@
-# RiemannPy
-
-<p align="center">
-    <img src="img/logo.png" width="100"/>
-</p>
+<h1 align="center">
+    <img src="img/logo.png" width="300"/>
+</h1><br>
 
 `RiemannPy` is a Python library for `Differential Geometry`, more specifically `Riemannian Geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
 
