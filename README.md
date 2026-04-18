@@ -1,6 +1,6 @@
-<h1 align="center">
+<p align="center">
     <img src="img/logo.png" width="400"/>
-</h1><br>
+</p>
 
 `RiemannPy` is a Python library for **Differential Geometry**, with a particular focus on **Riemannian Geometry on discrete data**. It is designed to bridge the gap between smooth geometric theory and practical numerical computation by providing tools to approximate **local differential structure** and **intrinsic differential operators** directly from point-sampled surfaces.
 
@@ -9,10 +9,10 @@ Unlike traditional geometry processing frameworks that rely on explicit mesh con
 The main goal of `RiemannPy` is to enable **numerical experimentation in geometric analysis and partial differential equations (PDEs)** on manifolds. It provides a consistent framework to study intrinsic properties of surfaces and to simulate physical processes such as heat diffusion or wave propagation directly on sampled geometries.
 
 The library is particularly well-suited for:
-- Geometry processing and surface analysis  
-- Discrete differential geometry research  
-- Simulation of PDEs on manifolds  
-- Prototyping algorithms that do not depend on mesh structures  
+- Geometry processing and surface analysis.
+- Discrete differential geometry research.
+- Simulation of PDEs on manifolds.
+- Prototyping algorithms that do not depend on mesh structures.
 
 By abstracting complex geometric concepts into accessible data structures and operators, `RiemannPy` allows researchers and developers to focus on experimentation and algorithm design, rather than low-level geometric implementation details.
 
@@ -146,9 +146,9 @@ laplace_beltrami   = filed.laplace_beltrami
 ```
 
 ## TODO
-* Vector and Tensor fields
-* Covariant Derivative
-* Higher dimensions manifolds
+* Vector and Tensor fields.
+* Covariant Derivative.
+* Higher dimensions manifolds.
 
 ## Contributing
 Please feel free to submit issues or pull requests.
