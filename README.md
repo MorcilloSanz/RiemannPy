@@ -2,39 +2,72 @@
     <img src="img/logo.png" width="400"/>
 </h1><br>
 
-`RiemannPy` is a Python library for `Differential Geometry`, more specifically `Riemannian Geometry`. It provides tools for approximating `local differential structure`, as well as discrete `differential operators`.
+`RiemannPy` is a Python library for **Differential Geometry**, with a particular focus on **Riemannian Geometry on discrete data**. It is designed to bridge the gap between smooth geometric theory and practical numerical computation by providing tools to approximate **local differential structure** and **intrinsic differential operators** directly from point-sampled surfaces.
 
-The library is designed to facilitate numerical experimentation in geometry processing and geometric PDEs by operating directly on sampled surfaces, without requiring explicit mesh connectivity.
+Unlike traditional geometry processing frameworks that rely on explicit mesh connectivity, `RiemannPy` operates purely on **point clouds**, making it especially useful in scenarios where connectivity is unknown, unreliable, or expensive to compute. By leveraging local neighborhoods and geometric fitting techniques, the library reconstructs key geometric quantities such as tangent spaces, metric tensors, and curvature in a fully discrete setting.
+
+The main goal of `RiemannPy` is to enable **numerical experimentation in geometric analysis and partial differential equations (PDEs)** on manifolds. It provides a consistent framework to study intrinsic properties of surfaces and to simulate physical processes such as heat diffusion or wave propagation directly on sampled geometries.
+
+The library is particularly well-suited for:
+- Geometry processing and surface analysis  
+- Discrete differential geometry research  
+- Simulation of PDEs on manifolds  
+- Prototyping algorithms that do not depend on mesh structures  
+
+By abstracting complex geometric concepts into accessible data structures and operators, `RiemannPy` allows researchers and developers to focus on experimentation and algorithm design, rather than low-level geometric implementation details.
 
 ### RiemannPy for computing the curvature of a sampled surface
-The `scalar curvature` was derived by computing the gaussian curvature from the first and second fundamental forms of local fitted paraboloids.
+The `scalar curvature` of a sampled surface can be directly computed, providing a practical way to analyze the intrinsic geometry of complex and even irregular surfaces.
 ![](img/curvature.png)
 
 ### RiemannPy for Partial Differential Equations
-The `Laplace–Beltrami operator` was computed on the vertices of the Stanford Bunny, without relying on mesh connectivity. Based on this operator, the heat equation and the wave equation were solved on the surface of the model.
+The `Laplace–Beltrami operator` can be directly computed, enabling the efficient solution of Partial Differential Equations on manifolds defined by sampled surfaces.
 
 ![](img/heat_equation.png)
 
 ![](img/wave_equation.png)
 
+```python
+# Load manifold
+points = np.array([...])
+manifold = Manifold(points)
+    
+# Temperature scalar field at t=0
+init_values = np.sin(manifold.points[:, 0] * 1.5) + np.cos(manifold.points[:, 1] * 1.5)
+phi = ScalarField(manifold, init_values)
+
+# Solve heat equation
+alpha = 0.25
+delta_t = 1.0
+
+phi.compute_differential_operators()
+phi.values = phi.values + delta_t * alpha * phi.laplace_beltrami
+```
+
 ## Local differential structure
-The `Manifold` class computes and stores the following differential geometry entities for each sample point $i$:
 
-* **`points`**: Coordinates in ambient 3D space $(x, y, z)$.
-* **`local_coordinates`**: 2D coordinates $(u, v)$ in the local tangent plane, representing the mapping by a chart $\phi$.
-* **`normal_vectors`**: Normalized unit normal vector $\vec{n}$ at each point.
-* **`tangent_vectors`**: Basis vectors $\{r_u, r_v\}$ spanning the tangent space $T_pM$ in ambient coordinates.
-* **`metric_tensor`**: The metric tensor $g_{\mu\nu}$ (First Fundamental Form) at each point.
-* **`metric_tensor_inv`**: The inverse metric tensor $g^{\mu\nu}$ at each point.
-* **`metric_tensor_derivatives`**: Partial derivatives of the metric tensor $\partial_\alpha g_{\mu\nu}$ (where $\alpha \in \{u, v\}$).
-* **`christoffel_symbols`**: Christoffel Symbols of the second kind $\Gamma^\sigma_{\mu\nu}$, defining the Levi-Civita connection.
-* **`gaussian_curvature`**: The intrinsic Gaussian curvature $K$ at each point.
-* **`scalar_curvature`**: The scalar curvature $R$, which for 2D manifolds is $2K$.
-* **`ricci_curvature_tensor`**: The Ricci curvature tensor, defined as $R_{\mu\nu} = K g_{\mu\nu}$.
-* **`riemann_curvature_tensor`**: The Riemann curvature tensor $R_{\mu\nu\sigma\rho}$, where the non-zero components are determined by $K$ and the metric determinant $\det(g)$.
+The `Manifold` class computes and stores the local differential geometry at each sample point, providing direct access to the intrinsic structure of the surface.
 
-It also allows computing the geodesic between two points.
-* **`geodesic`:** Computes the geodesic and its arclength between two points.
+### Geometry & Local Coordinates
+- **`points`**: Coordinates in ambient 3D space $(x, y, z)$.
+- **`local_coordinates`**: 2D coordinates $(u, v)$ (in the tangent plane, given by a chart $ \varphi : U \subset \mathcal{M} \rightarrow \mathbb{R}^2$).
+- **`normal_vectors`**: Unit normal vector $\vec{n}$.
+- **`tangent_vectors`**: Basis $\{r_u, r_v\}$ spanning the tangent space $T_p\mathcal{M}$.
+
+### Metric Structure
+- **`metric_tensor`**: Metric tensor $g_{\mu\nu}$ (First Fundamental Form).
+- **`metric_tensor_inv`**: Inverse metric $g^{\mu\nu}$.
+- **`metric_tensor_derivatives`**: Partial derivatives $\partial_\alpha g_{\mu\nu}$.
+
+### Connection & Curvature
+- **`christoffel_symbols`**: Christoffel symbols $\Gamma^\sigma_{\mu\nu}$.
+- **`gaussian_curvature`**: Gaussian curvature $K$.
+- **`scalar_curvature`**: Scalar curvature $R = 2K$.
+- **`ricci_curvature_tensor`**: Ricci tensor $R_{\mu\nu} = K g_{\mu\nu}$.
+- **`riemann_curvature_tensor`**: Riemann tensor $R_{\mu\nu\sigma\rho}$.
+
+### Geodesics
+- **`geodesic`**: Computes the geodesic and its arc length between two points.
 
 ### Usage Example: Accessing Manifold Properties
 
@@ -72,13 +105,19 @@ geodesic_coords: np.array = manifold.points[geodesic]
 ```
 
 ## Differential operators
-The `ScalarField` class represents a scalar function $f: M \to \mathbb{R}$ defined over the manifold. It provides discrete approximations of differential operators based on the local neighborhood of each point:
 
-* **`gradient`**: A discrete edge-based representation of the surface gradient $\nabla_{\mathcal{M}} f$. Instead of a single vector in $\mathbb{R}^n$, it is returned as a list of arrays where each entry $i$ contains the weighted differences $\sqrt{w_{ij}}(f_j - f_i)$ along the edges connected to point $i$.
-* **`gradient_norm`**: An approximation of the gradient magnitude $\|\nabla_{\mathcal{M}} f\|$ at each point. It is computed as the square root of the local variation, providing a measure of the field's steepness on the manifold surface.
-* **`dirichlet_energy`**: The local Dirichlet energy $E_D(f)_i = \|\nabla_{\mathcal{M}} f\|_i^2$. It quantifies the local "roughness" or variability of the scalar field. Higher values indicate sharp transitions or high-frequency components, while lower values indicate smoothness.
-* **`laplacian`**: An approximation of the **Random Walk Graph Laplacian** $(L_{rw} = I - D^{-1}W)$. This operator represents the difference between the value at point $i$ and the weighted average of its neighbors, making it ideal for diffusion and smoothing processes.
-* **`laplace_beltrami`**: A robust approximation of the **Symmetric Normalized Laplacian** $(L_{sym} = I - D^{-1/2}WD^{-1/2})$. This formulation is numerically stable and standard for spectral manifold analysis, ensuring consistency regardless of local point density.
+The `ScalarField` class represents a scalar function $f: M \to \mathbb{R}$ defined over the manifold. It provides discrete approximations of differential operators based on the local neighborhood of each point.
+
+### Gradient
+- **`gradient`**: Discrete edge-based representation of the surface gradient $\nabla_{\mathcal{M}} f$. Instead of a single vector in $\mathbb{R}^n$, it is represented as a list of arrays where each entry $i$ contains the weighted differences $\sqrt{w_{ij}}(f_j - f_i)$ along edges connected to point $i$.
+- **`gradient_norm`**: Approximation of the gradient magnitude $\|\nabla_{\mathcal{M}} f\|$ at each point, computed from local variation and measuring the steepness of the field.
+
+### Energy
+- **`dirichlet_energy`**: Local Dirichlet energy $E_D(f)_i = \|\nabla_{\mathcal{M}} f\|_i^2$, measuring local roughness of the scalar field. High values indicate sharp transitions, while low values indicate smooth behavior.  
+
+### Laplacian Operators
+- **`laplacian`**: Approximation of the Random Walk Graph Laplacian $L_{rw} = I - D^{-1}W$, capturing the difference between a value and the weighted average of its neighbors, suitable for diffusion and smoothing.
+- **`laplace_beltrami`**: Approximation of the Symmetric Normalized Laplacian $L_{sym} = I - D^{-1/2} W D^{-1/2}$, a numerically stable formulation widely used in spectral manifold analysis.
 
 ### Usage Example: Scalar Field Operations
 
